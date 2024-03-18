@@ -1,0 +1,235 @@
+/**
+******************************************************************************
+* @file main.c
+* @author ����ԭ���Ŷ�(ALIENTEK)
+* @version V1.4
+* @date 2022-01-04
+* @brief FreeRTOS ��ֲʵ��
+* @license Copyright (c) 2020-2032, �������������ӿƼ����޹�˾
+******************************************************************************
+* @attention
+*
+* ʵ��ƽ̨:����ԭ�� ս�� F103 ������
+* ������Ƶ:www.yuanzige.com
+* ������̳:www.openedv.com
+* ��˾��ַ:www.alientek.com
+* �����ַ:openedv.taobao.com
+*
+******************************************************************************
+*/
+#include "freertos_demo.h"
+#include "./SYSTEM/usart/usart.h"
+#include "./BSP/LED/led.h"
+#include "./BSP/LCD/lcd.h"
+#include "./BSP/KEY/key.h"
+/*FreeRTOS********************************************************************/
+#include "./FreeRTOS/include/FreeRTOS.h"
+#include "task.h"
+/*****************************************************************************/
+/*FreeRTOS ����*/
+/* START_TASK 相关参数
+*/
+#define START_TASK_PRIO 1                   /* 任务优先级 */
+#define START_STK_SIZE 128                  /* 任务堆栈大小*/
+TaskHandle_t StartTask_Handler;             /* 任务控制句柄 */
+void start_task(void *pvParameters);        /* 任务原型声明 */
+StackType_t  StartSTACKBuffer[START_STK_SIZE];  //静态创建任务时采用:任务堆栈区域
+StaticTask_t   StartTask_tcb;                   //静态创建任务时采用:任务tcb变量
+
+/* TASK1 相关参数
+*/
+#define TASK1_PRIO 4                        /* 任务优先级 */
+#define TASK1_STK_SIZE 128                  /* 任务堆栈大小*/
+TaskHandle_t Task1Task_Handler;             /* 任务控制句柄 */
+void task1(void *pvParameters);             /* 任务原型声明 */
+StackType_t  Task1STACKBuffer[TASK1_STK_SIZE];  //静态创建任务时采用:任务堆栈区域
+StaticTask_t   Task1Task_tcb;                   //静态创建任务时采用:任务tcb变量
+
+/* TASK2 相关参数
+*/
+#define TASK2_PRIO 3                     /* 任务优先级 */               
+#define TASK2_STK_SIZE 128               /* 任务堆栈大小*/
+TaskHandle_t Task2Task_Handler;          /* 任务控制句柄 */
+void task2(void *pvParameters);          /* 任务原型声明 */
+StackType_t  Task2STACKBuffer[TASK2_STK_SIZE];  //静态创建任务时采用:任务堆栈区域
+StaticTask_t   Task2Task_tcb;                   //静态创建任务时采用:任务tcb变量
+/*
+TASK3  相关参数
+*/
+#define TASK3_PRIO 2
+#define TASK3_STK_SIZE 128
+TaskHandle_t Task3Task_Handler; /* ������ */
+void task3(void *pvParameters); /* ������ */
+StackType_t  Task3STACKBuffer[START_STK_SIZE];  //静态创建任务时采用:任务堆栈区域
+StaticTask_t   Task3Task_tcb;                   //静态创建任务时采用:任务tcb变量
+
+/*****************************************************************************/
+/* LCD ˢ��ʱʹ�õ���ɫ */
+uint16_t lcd_discolor[11] = { WHITE, BLACK, BLUE, RED,
+ MAGENTA, GREEN, CYAN, YELLOW,
+ BROWN, BRRED, GRAY};
+/**
+* @brief FreeRTOS ������ں���
+* @param ��
+* @retval ��
+*/
+void freertos_demo(void)
+{
+    lcd_show_string(10, 10, 220, 32, 32, "STM32", RED);
+    lcd_show_string(10, 47, 220, 24, 24, "FreeRTOS Porting", RED);
+    lcd_show_string(10, 76, 220, 16, 16, "ATOM@ALIENTEK", RED);
+    //动态创建
+    // xTaskCreate((TaskFunction_t)start_task,          /* 任务原型函数:start_task - void start_task(void *pvParameters) */
+    //             (const char *)"start_task",          /* 任务名称:start_task */
+    //             (uint16_t)START_STK_SIZE,            /* 任务堆栈大小:START_STK_SIZE -128 */
+    //             (void *)NULL,                        /* ������������Ĳ��� */
+    //             (UBaseType_t)START_TASK_PRIO,        /* �������ȼ� */
+    //             (TaskHandle_t *)&StartTask_Handler); /* ������ */
+
+   //静态态创建
+   StartTask_Handler = xTaskCreateStatic((TaskFunction_t)start_task,           //任务原型函数:start_task - void start_task(void *pvParameters)
+                      (const char *)"start_task",           //任务名称:start_task
+                      (uint16_t)START_STK_SIZE,       //任务堆栈大小:START_STK_SIZE -128
+                      (void *)NULL,                    //任务形参:无
+                      (UBaseType_t)START_TASK_PRIO,         //任务优先级:1
+                      (StackType_t *)StartSTACKBuffer, //任务堆栈缓存:StartSTACKBuffer[]
+                      (StaticTask_t *)&StartTask_tcb); //任务控制块:&StartTask_tcb
+    vTaskStartScheduler();                          //开启任务调度器,不开启任务不执行
+}
+/**
+* @brief start_task
+* @param pvParameters : �������(δ�õ�)
+* @retval ��
+*/
+void start_task(void *pvParameters)
+{
+    taskENTER_CRITICAL(); /* �����ٽ��� */
+/*   动态创建任务
+    xTaskCreate((TaskFunction_t)task1,
+                (const char *)"task1",
+                (uint16_t)TASK1_STK_SIZE,
+                (void *)NULL,
+                (UBaseType_t)TASK1_PRIO,
+                (TaskHandle_t *)&Task1Task_Handler);
+
+    xTaskCreate((TaskFunction_t)task2,
+                (const char *)"task2",
+                (uint16_t)TASK2_STK_SIZE,
+                (void *)NULL,
+                (UBaseType_t)TASK2_PRIO,
+                (TaskHandle_t *)&Task2Task_Handler);
+
+    xTaskCreate((TaskFunction_t)task3,
+                (const char *)"task3",
+                (uint16_t)TASK3_STK_SIZE,
+                (void *)NULL,
+                (UBaseType_t)TASK3_PRIO,
+                (TaskHandle_t *)&Task3Task_Handler);
+*/
+
+    /*静态创建任务*/
+   Task1Task_Handler = xTaskCreateStatic((TaskFunction_t)task1,           // 任务原型函数:task1 - void task1(void *pvParameters)
+                      (const char *)"task1",           // 任务名称:task1
+                      ( uint32_t)TASK1_STK_SIZE,       // 任务堆栈大小:START_STK_SIZE -128
+                      (void *)NULL,                    // 任务形参:无
+                      (UBaseType_t)TASK1_PRIO,              // 任务优先级:1
+                      (StackType_t *)Task1STACKBuffer, // 任务堆栈缓存:StartSTACKBuffer[]
+                      (StaticTask_t *)&Task1Task_tcb); // 任务控制块:&StartTask_tcb
+
+   Task2Task_Handler = xTaskCreateStatic((TaskFunction_t)task2,           // 任务原型函数:task1 - void task1(void *pvParameters)
+                      (const char *)"task2",           // 任务名称:task1
+                      ( uint32_t)TASK2_STK_SIZE,       // 任务堆栈大小:START_STK_SIZE -128
+                      (void *)NULL,                    // 任务形参:无
+                      (UBaseType_t)TASK2_PRIO,              // 任务优先级:2
+                      (StackType_t *)Task2STACKBuffer, // 任务堆栈缓存:StartSTACKBuffer[]
+                      (StaticTask_t *)&Task2Task_tcb); // 任务控制块:&StartTask_tcb
+
+    Task3Task_Handler = xTaskCreateStatic((TaskFunction_t)task3,           // 任务原型函数:task1 - void task1(void *pvParameters)
+                      (const char *)"task3",           // 任务名称:task1
+                      ( uint32_t)TASK3_STK_SIZE,       // 任务堆栈大小:START_STK_SIZE -128
+                      (void *)NULL,                    // 任务形参:无
+                      (UBaseType_t)TASK3_PRIO,              // 任务优先级:3
+                      (StackType_t *)Task3STACKBuffer, // 任务堆栈缓存:StartSTACKBuffer[]
+                      (StaticTask_t *)&Task3Task_tcb); // 任务控制块:&StartTask_tcb
+
+    vTaskDelete(NULL);   /* ɾ����ʼ���� */
+    taskEXIT_CRITICAL(); /* �˳��ٽ��� */
+}
+/**
+* @brief task1
+* @param pvParameters : �������(δ�õ�)
+* @retval ��
+*/
+void task1(void *pvParameters)
+{
+    // uint32_t task1_num = 0;
+
+    while (1)
+    {
+        // lcd_clear(lcd_discolor[++task1_num % 14]); /* ˢ����Ļ */
+        // lcd_show_string(10, 10, 220, 32, 32, "STM32", RED);
+        // lcd_show_string(10, 47, 220, 24, 24, "FreeRTOS Porting", RED);
+        // lcd_show_string(10, 76, 220, 16, 16, "ATOM@ALIENTEK", RED);
+        printf("TASK1 Aliving! \r\n");
+        LED0_TOGGLE();    /* LED0 ��˸ */
+        vTaskDelay(1000); /* ��ʱ 1000ticks */
+    }
+}
+/**
+* @brief task2
+* @param pvParameters : �������(δ�õ�)
+* @retval ��
+*/
+void task2(void *pvParameters)
+{
+    while (1)
+    {
+         printf("TASK2 Aliving! \r\n");
+        LED1_TOGGLE();
+        vTaskDelay(500); /* ��ʱ 1000ticks */
+    }
+}
+
+void task3(void *pvParameters)
+{
+    while (1)
+    {
+        if ((g_suspend_resume & 1<<0) == 1<<0)
+        {
+            vTaskSuspend(Task1Task_Handler);
+            printf("TASK1 Suspend  ! \r\n");
+            g_suspend_resume = 0;
+        }
+        if ((g_suspend_resume & 1<<1) == 1<<1)
+        {
+            vTaskResume(Task1Task_Handler);
+            printf("TASK1 Resume ! \r\n");
+           g_suspend_resume = 0;
+        }
+        
+    }
+}
+
+/*静态创建任务的内存堆栈分配*/
+StaticTask_t IdeTaskTCB;                                                   //定义TCB地址
+StackType_t IdleTaskStackBuffer[configMINIMAL_STACK_SIZE];                 //定义任务堆栈空间
+void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer,
+                                   StackType_t **ppxIdleTaskStackBuffer,
+                                   uint32_t *pulIdleTaskStackSize)
+{
+    *ppxIdleTaskTCBBuffer = &IdeTaskTCB;              //tcb控制块地址为&IdeTaskTCB
+    *ppxIdleTaskStackBuffer = IdleTaskStackBuffer;    //任务堆栈空间首地址
+    *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;   //任务堆栈空间大小
+}
+
+/*静态创建任务的软件定时器内存分配*/
+StaticTask_t TimerTaskTCB;                                      // 定义软件定时器TCB地址
+StackType_t TimerTaskStackBuffer[configTIMER_TASK_STACK_DEPTH]; // 定义软件定时器任务堆栈空间
+void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
+                                    StackType_t **ppxTimerTaskStackBuffer,
+                                    uint32_t *pulTimerTaskStackSize)
+{
+    *ppxTimerTaskTCBBuffer = &TimerTaskTCB;              // tcb控制块地址为&IdeTaskTCB
+    *ppxTimerTaskStackBuffer = TimerTaskStackBuffer;    // 任务堆栈空间首地址
+    *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH; // 任务堆栈空间大小
+}
